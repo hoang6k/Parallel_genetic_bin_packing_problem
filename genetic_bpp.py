@@ -86,7 +86,7 @@ class Population:
         right_bins = []
         free_items = []
         for i in range(len(chromosome._bins)):
-            intersection = [label for label in chromosome._bins[i].get_labels if label in take_labels]
+            intersection = [label for label in chromosome._bins[i].get_labels() if label in take_labels]
             if len(intersection) == 0:
                 if i < points_insert:
                     left_bins.append(chromosome._bins[i])
@@ -101,8 +101,8 @@ class Population:
 
     def crossover(self, father: Chromosome, mother: Chromosome):
         while True:
-            two_points_father = np.random.randint(high=len(father._bins) + 1, size=2)
-            two_points_mother = np.random.randint(high=len(mother._bins) + 1, size=2)
+            two_points_father = np.random.randint(len(father._bins) + 1, size=2)
+            two_points_mother = np.random.randint(len(mother._bins) + 1, size=2)
             if two_points_father[0] != two_points_father[1] and \
                     two_points_mother[0] != two_points_mother[1]:
                 break
