@@ -1,5 +1,7 @@
 import numpy as np
 import copy
+from multiprocessing import cpu_count, Pool
+from multiprocessing.pool import ThreadPool
 from time import time
 
 np.random.seed(0)
@@ -167,27 +169,36 @@ class Population:
         # parent, free_items = self.replacement(parent, free_items)
         return self.first_fit_descending(parent, free_items)
 
+    def cross_over_parallel(self, data:list):
+        fitness = data[0]
+        current_generation = data[1]
+        children = []
+        _crossover = bool(np.random.rand(1) <= self._crossover_probability)
+        if _crossover:
+            father = current_generation[self.roulette_wheel_selection(array=fitness)]
+            mother = current_generation[self.roulette_wheel_selection(array=fitness)]
+            child_1, child_2 = self.crossover(father, mother)
+            children.append(child_1)
+            children.append(child_2)
+        return children
+
+
     def generate_next(self):
         print('\nIteration {}'.format(len(self._generations_fitness)))
         current_generation = self._generations[-1]
         current_generation_fitness = self._generations_fitness[-1]
         fitness = np.asarray([chromo._fitness for chromo in current_generation])
-        children = []
 
         # cross-over phase
+        data = [[fitness, current_generation] for i in range(int(self._offspring_number / 2))]
         start_time = time()
-        if self._print:
-            print('----CROSS-OVER PHASE')
-        for i in range(int(self._offspring_number / 2)):
-            if self._print:
-                print('\t\t{}_th 2 childs'.format(i + 1))
-            _crossover = bool(np.random.rand(1) <= self._crossover_probability)
-            if _crossover:
-                father = current_generation[self.roulette_wheel_selection(array=fitness)]
-                mother = current_generation[self.roulette_wheel_selection(array=fitness)]
-                child_1, child_2 = self.crossover(father, mother)
-                children.append(child_1)
-                children.append(child_2)
+        pool = Pool(self._cpu)
+        children = pool.map(self.cross_over_parallel, data)
+        # thread_pool = ThreadPool(processes=self._cpu)
+        # children = thread_pool.map(self.cross_over_parallel, data)
+        # thread_pool.close()
+        children = [child for sibling in children for child in sibling]
+        print(len(children))
         print('Time of cross-over: {} seconds'.format(time() - start_time))
         children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
         print('\tCROSS-OVER fitness: {}'.format(children_fitness))
@@ -220,7 +231,7 @@ class Population:
         self._generations_solution.append(np.min(np.asarray([len(chromo._bins) for chromo in next_generation])))
         return self._generations_fitness[-1], self._generations_solution[-1]
 
-    def generate_populations(self, generate_config: dict, _print=False):
+    def generate_populations(self, generate_config: dict, _print=False, _cpus=cpu_count()):
         self._generations_number = generate_config['generations_number']
         self._crossover_probability = generate_config['crossover_probability']
         self._mutation_probability = generate_config['mutation_probability']
@@ -229,6 +240,7 @@ class Population:
         self._chromosomes_replace = generate_config['chromosomes_replace']
         self._stop_criterion_depth = generate_config['stop_criterion_depth']
         self._print = _print
+        self._cpu = _cpus
 
         current_generation_fitness = self._generations_fitness[-1]
         current_solution = self._generations_solution[-1]
@@ -296,7 +308,7 @@ if __name__ == '__main__':
                        'generations_number': 500, 'stop_criterion_depth': 50}
     generate_config['offspring_number'] = int(generate_config['population_size'] / 2)
     generate_config['chromosomes_replace'] = int(generate_config['population_size'] / 2)
-    # path = 'data/binpack_test.txt'
+    path = 'data/binpack_test.txt'
     # path = 'data/binpack1.txt'
     # path = 'data/binpack2.txt'
     # path = 'data/binpack4.txt'
@@ -305,5 +317,5 @@ if __name__ == '__main__':
         population = Population.population_initialization(D=_set['D'], N=_set['N'], B=_set['B'],
                                                           d_list=_set['d_list'],
                                                           population_size=generate_config['population_size'], )
-        population.generate_populations(generate_config, _print=False)
+        population.generate_populations(generate_config, _print=False, _cpus=4)
         break
