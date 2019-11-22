@@ -81,16 +81,11 @@ class Population:
         Population._current_generation = current_generation
 
         # cross-over phase
-        # data = [[fitness, current_generation] for i in range(int(self._offspring_number / 2))]
         data = [i for i in range(int(self._offspring_number / 2))]
         start_time = time()
         pool = Pool(self._cpu)
         children = pool.map(cross_over_parallel, data)
         pool.close()
-        pool.join()
-        # thread_pool = ThreadPool(processes=self._cpu)
-        # children = thread_pool.map(cross_over_parallel, data)
-        # thread_pool.close()
         children = [child for sibling in children for child in sibling]
         print('Time of cross-over: {} seconds'.format(time() - start_time))
         children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
@@ -102,7 +97,6 @@ class Population:
         pool = Pool(self._cpu)
         children = pool.map(mutation_parallel, data)
         pool.close()
-        pool.join()
         print('Time of mutation: {} seconds'.format(time() - start_time))
         children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
         print('\tMUTATION fitness: {}'.format(children_fitness))
@@ -115,7 +109,7 @@ class Population:
         for idx in worst_indexes:
             current_generation.pop(idx)
         next_generation = current_generation + children
-        children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
+        children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in next_generation]))
         self._generations.append(next_generation)
         self._generations_fitness.append(np.max([current_generation_fitness, children_fitness]))
         self._generations_solution.append(np.min(np.asarray([len(chromo._bins) for chromo in next_generation])))
@@ -321,9 +315,9 @@ if __name__ == '__main__':
                        'generations_number': 500, 'stop_criterion_depth': 50}
     generate_config['offspring_number'] = int(generate_config['population_size'] / 2)
     generate_config['chromosomes_replace'] = int(generate_config['population_size'] / 2)
-    # path = 'data/binpack_test.txt'
+    path = 'data/binpack_test.txt'
     # path = 'data/binpack1.txt'
-    path = 'data/binpack2.txt'
+    # path = 'data/binpack2.txt'
     # path = 'data/binpack4.txt'
     test_sets = load_data(path)
     for _set in test_sets:
