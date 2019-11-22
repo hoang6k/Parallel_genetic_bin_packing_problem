@@ -296,9 +296,9 @@ if __name__ == '__main__':
                        'generations_number': 500, 'stop_criterion_depth': 50}
     generate_config['offspring_number'] = int(generate_config['population_size'] / 2)
     generate_config['chromosomes_replace'] = int(generate_config['population_size'] / 2)
-    path = 'data/binpack_test.txt'
+    # path = 'data/binpack_test.txt'
     # path = 'data/binpack1.txt'
-    # path = 'data/binpack2.txt'
+    path = 'data/binpack2.txt'
     # path = 'data/binpack4.txt'
     test_sets = load_data(path)
     for _set in test_sets:

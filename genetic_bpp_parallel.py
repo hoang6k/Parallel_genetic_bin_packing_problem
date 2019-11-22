@@ -87,6 +87,7 @@ class Population:
         pool = Pool(self._cpu)
         children = pool.map(cross_over_parallel, data)
         pool.close()
+        pool.join()
         # thread_pool = ThreadPool(processes=self._cpu)
         # children = thread_pool.map(cross_over_parallel, data)
         # thread_pool.close()
@@ -100,6 +101,9 @@ class Population:
         start_time = time()
         pool = Pool(self._cpu)
         children = pool.map(mutation_parallel, data)
+        pool.close()
+        pool.join()
+        print(len(children))
         print('Time of mutation: {} seconds'.format(time() - start_time))
         children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
         print('\tMUTATION fitness: {}'.format(children_fitness))
@@ -318,14 +322,14 @@ if __name__ == '__main__':
                        'generations_number': 500, 'stop_criterion_depth': 50}
     generate_config['offspring_number'] = int(generate_config['population_size'] / 2)
     generate_config['chromosomes_replace'] = int(generate_config['population_size'] / 2)
-    path = 'data/binpack_test.txt'
+    # path = 'data/binpack_test.txt'
     # path = 'data/binpack1.txt'
-    # path = 'data/binpack2.txt'
+    path = 'data/binpack2.txt'
     # path = 'data/binpack4.txt'
     test_sets = load_data(path)
     for _set in test_sets:
         population = Population.population_initialization(D=_set['D'], N=_set['N'], B=_set['B'],
                                                           d_list=_set['d_list'],
                                                           population_size=generate_config['population_size'], )
-        population.generate_populations(generate_config, _print=False, _cpus=3)
+        population.generate_populations(generate_config, _print=False, _cpus=2)
         break
