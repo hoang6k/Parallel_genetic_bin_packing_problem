@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 np.random.seed(0)
 
@@ -10,7 +11,9 @@ class Item:
 
 
 class Bin:
-    def __init__(self, items: list = [], capacity: int = 0):
+    def __init__(self, items: list = None, capacity: int = 0):
+        if items is None:
+            items = []
         self._items = items
         self._capacity = capacity
 
@@ -23,7 +26,9 @@ class Bin:
 
 
 class Chromosome:
-    def __init__(self, bins: list = [], max_capacity: int = 0):
+    def __init__(self, bins: list = None, max_capacity: int = 0):
+        if bins is None:
+            bins = []
         self._bins = bins
         self._max_capacity = max_capacity
         self._fitness = None
@@ -34,23 +39,33 @@ class Chromosome:
         self._fitness = np.sum(np.power(bins_capacity / self._max_capacity, 2)) / num_bins
         return self._fitness
 
+    def count_items(self):
+        return len([item for _bin in self._bins for item in _bin._items])
+
+    def count_indexes(self):
+        items = [item for _bin in self._bins for item in _bin._items]
+        indexes = [item._label for item in items]
+        return len(set(indexes))
+
 
 class Population:
-    def __init__(self, first_population: list = [], result: int = None):
+    def __init__(self, first_population: list = None, result: int = None):
+        if first_population is None:
+            first_population = []
         self._population_size = len(first_population)
-        self._first_population = first_population
-        self._generations = [self._first_population]
-        self._generations_fitness = [
-            np.max(np.asarray([chromo.calculate_fitness() for chromo in self._first_population]))]
+        self._generations = [first_population]
+        self._generations_fitness = [np.max(np.asarray([chromo.calculate_fitness() for chromo in first_population]))]
+        self._generations_solution = [np.min(np.asarray([len(chromo._bins) for chromo in first_population]))]
         self._result = result
+        self._print = False
 
     def roulette_wheel_selection(self, array, k: int = 2):
         max_value = np.sum(array)
         points = [0]
-        sum = 0
+        _sum = 0
         for fitness in array:
-            sum += fitness
-            points.append(sum)
+            _sum += fitness
+            points.append(_sum)
         k_chosen = max_value * np.random.random_sample(3)
         chosen_indexes = []
         for var in k_chosen:
@@ -61,29 +76,47 @@ class Population:
         return chosen_index
 
     def first_fit_descending(self, chromosome: Chromosome, items: list):
+        chromosome = copy.deepcopy(chromosome)
+        items = copy.deepcopy(items)
+        if self._print:
+            print('\t\t\t\t\tFFD chromosome has {} Bins, {} Items and {} free items'.format(len(chromosome._bins),
+                                                                                            chromosome.count_items(),
+                                                                                            len(items)))
         items = sorted(items, key=lambda item: item._size, reverse=True)
         max_capacity = chromosome._max_capacity
+        add_bins = []
         current_bin = Bin()
         _flag = False
+        _count = 0
         for item in items:
-            for i in range(len(chromosome._bins)):
-                if chromosome._bins[i]._capacity + item._size <= max_capacity:
-                    chromosome._bins[i].add_item(item)
+            _count += 1
+            for _bin in chromosome._bins:
+                if _bin._capacity + item._size <= max_capacity:
+                    _bin.add_item(item)
                     _flag = True
                     break
             if not _flag:
                 if current_bin._capacity + item._size <= max_capacity:
                     current_bin.add_item(item)
                 else:
-                    chromosome._bins.append(current_bin)
+                    add_bins.append(current_bin)
                     current_bin = Bin()
                     current_bin.add_item(item)
+            _flag = False
+        if current_bin._capacity > 0:
+            add_bins.append(current_bin)
+        chromosome._bins += add_bins
+        if self._print:
+            print('\t\t\t\t\tFFD finished with {} Bins and {} items'.format(len(chromosome._bins),
+                                                                            chromosome.count_items()))
         return chromosome
 
     def replacement(self, chromosome: Chromosome, items: list):
         pass
 
     def crossover_one_chromosome(self, chromosome: Chromosome, points_insert: int, genes: list):
+        if self._print:
+            print('\t\t\t\tCrossover parent has {} Bins'.format(len(chromosome._bins)))
         child = Chromosome(genes, max_capacity=chromosome._max_capacity)
         take_labels = [_bin.get_labels() for _bin in genes]
         take_labels = [label for bin_labels in take_labels for label in bin_labels]
@@ -102,11 +135,10 @@ class Population:
                     if item._label not in intersection:
                         free_items.append(item)
         child._bins = left_bins + child._bins + right_bins
-        # new_chromosome, free_items = self.replacement(new_chromosome, free_items)
+        # child, free_items = self.replacement(child, free_items)
         return self.first_fit_descending(child, free_items)
 
     def crossover(self, father: Chromosome, mother: Chromosome):
-        # print('\t\t\tCreating childs')
         while True:
             two_points_father = np.random.randint(len(father._bins) + 1, size=2)
             two_points_mother = np.random.randint(len(mother._bins) + 1, size=2)
@@ -114,10 +146,10 @@ class Population:
                 break
         two_points_father.sort()
         two_points_mother.sort()
-        # print('\t\t\t\t1st child')
+        if self._print:
+            print('\t\t\tFather Bins {} and mother Bins {}'.format(len(father._bins), len(mother._bins)))
         first_child = self.crossover_one_chromosome(chromosome=father, points_insert=two_points_father[1],
                                                     genes=mother._bins[two_points_mother[0]:two_points_mother[1]])
-        # print('\t\t\t\t2nd child')
         second_child = self.crossover_one_chromosome(chromosome=mother, points_insert=two_points_mother[0],
                                                      genes=father._bins[two_points_father[0]:two_points_father[1]])
         return first_child, second_child
@@ -131,19 +163,22 @@ class Population:
         bins_mutation_indexes = np.flip(bins_mutation_indexes)
         free_bins = [parent._bins.pop(idx) for idx in bins_mutation_indexes]
         free_items = [item for _bin in free_bins for item in _bin._items]
+        # parent, free_items = self.replacement(parent, free_items)
         return self.first_fit_descending(parent, free_items)
 
     def generate_next(self):
-        print('\n\nIteration {}'.format(len(self._generations_fitness)))
+        print('\nIteration {}'.format(len(self._generations_fitness)))
         current_generation = self._generations[-1]
         current_generation_fitness = self._generations_fitness[-1]
         fitness = np.asarray([chromo._fitness for chromo in current_generation])
         children = []
 
         # cross-over phase
-        print('\tCROSS-OVER PHASE')
+        if self._print:
+            print('----CROSS-OVER PHASE')
         for i in range(int(self._offspring_number / 2)):
-            print('\t\tStarting cross-over {}th 2 childs'.format(i + 1))
+            if self._print:
+                print('\t\t{}_th 2 childs'.format(i + 1))
             _crossover = bool(np.random.rand(1) <= self._crossover_probability)
             if _crossover:
                 father = current_generation[self.roulette_wheel_selection(array=fitness)]
@@ -151,15 +186,22 @@ class Population:
                 child_1, child_2 = self.crossover(father, mother)
                 children.append(child_1)
                 children.append(child_2)
+        children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
+        print('\tCROSS-OVER fitness: {}'.format(children_fitness))
 
         # mutation phase
-        print('\tMUTATION PHASE')
+        if self._print:
+            print('****MUTATION PHASE')
         for i in range(self._offspring_number):
-            print('\t\tStarting mutation {}th child'.format(i + 1))
+            chromosome = copy.deepcopy(children[i])
+            if self._print:
+                print('\t\tStarting mutation {}th child'.format(i + 1))
             _mutation = bool(np.random.rand(1) <= self._mutation_probability)
             if _mutation:
-                new_child = self.mutation(children[i])
+                new_child = self.mutation(chromosome)
                 children[i] = new_child
+        children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
+        print('\tMUTATION fitness: {}'.format(children_fitness))
 
         # replace worst chromosomes
         sorted_indexes = np.argsort(fitness)
@@ -172,9 +214,10 @@ class Population:
         children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
         self._generations.append(next_generation)
         self._generations_fitness.append(np.max([current_generation_fitness, children_fitness]))
-        return self._generations_fitness[-1]
+        self._generations_solution.append(np.min(np.asarray([len(chromo._bins) for chromo in next_generation])))
+        return self._generations_fitness[-1], self._generations_solution[-1]
 
-    def generate_populations(self, generate_config: dict):
+    def generate_populations(self, generate_config: dict, _print=False):
         self._generations_number = generate_config['generations_number']
         self._crossover_probability = generate_config['crossover_probability']
         self._mutation_probability = generate_config['mutation_probability']
@@ -182,12 +225,21 @@ class Population:
         self._offspring_number = generate_config['offspring_number']
         self._chromosomes_replace = generate_config['chromosomes_replace']
         self._stop_criterion_depth = generate_config['stop_criterion_depth']
+        self._print = _print
 
+        current_generation_fitness = self._generations_fitness[-1]
+        current_solution = self._generations_solution[-1]
+        print('Initial fitness: {}'.format(current_generation_fitness))
+        print('Initial solution: {} bins'.format(current_solution))
         stop_depth = 0
         best_fitness = self._generations_fitness[-1]
         for i in range(self._generations_number):
-            new_generation_fitness = self.generate_next()
-            print('Generation {}: fitness {}'.format(i + 1, new_generation_fitness))
+            new_generation_fitness, new_generation_solution = self.generate_next()
+            print('Generation {}: fitness {} and solution {} bins'.format(i + 1, new_generation_fitness,
+                                                                          new_generation_solution))
+            if new_generation_solution <= self._result:
+                print('SOLUTION FOUND')
+                break
             if new_generation_fitness <= best_fitness:
                 stop_depth += 1
                 print('\tFitness not increase for {} generations'.format(stop_depth))
@@ -217,6 +269,7 @@ class Population:
                     current_bin.add_item(Item(label=idx, size=d_list[idx]))
             bins.append(current_bin)
             chromos.append(Chromosome(bins, max_capacity=D))
+            break
         return Population(chromos, result=B)
 
 
@@ -237,18 +290,16 @@ def load_data(data_path):
 if __name__ == '__main__':
     generate_config = {'population_size': 60, 'offspring_number': 50, 'chromosomes_replace': 50,
                        'crossover_probability': 1.0, 'mutation_probability': 0.66, 'mutation_size': 2,
-                       'generations_number': 500, 'stop_criterion_depth': 20}
+                       'generations_number': 500, 'stop_criterion_depth': 50}
     generate_config['offspring_number'] = int(generate_config['population_size'] / 2)
     generate_config['chromosomes_replace'] = int(generate_config['population_size'] / 2)
     # path = 'data/binpack_test.txt'
     path = 'data/binpack1.txt'
+    # path = 'data/binpack2.txt'
     test_sets = load_data(path)
     for _set in test_sets:
         population = Population.population_initialization(D=_set['D'], N=_set['N'], B=_set['B'],
                                                           d_list=_set['d_list'],
-                                                          population_size=generate_config['population_size'])
-        population.generate_populations(generate_config)
-
+                                                          population_size=generate_config['population_size'], )
+        population.generate_populations(generate_config, _print=False)
         break
-
-    pass
