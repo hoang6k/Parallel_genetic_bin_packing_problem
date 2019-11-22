@@ -291,12 +291,12 @@ def load_data(data_path):
 
 
 if __name__ == '__main__':
-    generate_config = {'population_size': 1000, 'offspring_number': 50, 'chromosomes_replace': 50,
+    generate_config = {'population_size': 500, 'offspring_number': 50, 'chromosomes_replace': 50,
                        'crossover_probability': 1.0, 'mutation_probability': 0.66, 'mutation_size': 2,
                        'generations_number': 500, 'stop_criterion_depth': 50}
     generate_config['offspring_number'] = int(generate_config['population_size'] / 2)
     generate_config['chromosomes_replace'] = int(generate_config['population_size'] / 2)
-    # path = 'data/binpack_test.txt'
+    path = 'data/binpack_test.txt'
     # path = 'data/binpack1.txt'
     # path = 'data/binpack2.txt'
     # path = 'data/binpack4.txt'
