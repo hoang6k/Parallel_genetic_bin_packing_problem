@@ -103,13 +103,12 @@ class Population:
         children = pool.map(mutation_parallel, data)
         pool.close()
         pool.join()
-        print(len(children))
         print('Time of mutation: {} seconds'.format(time() - start_time))
         children_fitness = np.max(np.asarray([chromo.calculate_fitness() for chromo in children]))
         print('\tMUTATION fitness: {}'.format(children_fitness))
 
         # replace worst chromosomes
-        sorted_indexes = np.argsort(self._fitness)
+        sorted_indexes = np.argsort(Population._fitness)
         worst_indexes = sorted_indexes[:self._chromosomes_replace]
         worst_indexes.sort()
         worst_indexes = np.flip(worst_indexes)
