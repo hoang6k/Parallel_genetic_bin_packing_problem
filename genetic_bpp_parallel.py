@@ -224,6 +224,7 @@ def first_fit_descending(chromosome: Chromosome, items: list):
     return chromosome
 
 def mutation(parent: Chromosome):
+    _parent = copy.deepcopy(parent)
     while True:
         bins_mutation_indexes = np.random.randint(len(parent._bins), size=Population._mutation_size)
         if len(set(bins_mutation_indexes)) == Population._mutation_size:
@@ -233,7 +234,11 @@ def mutation(parent: Chromosome):
     free_bins = [parent._bins.pop(idx) for idx in bins_mutation_indexes]
     free_items = [item for _bin in free_bins for item in _bin._items]
     # parent, free_items = self.replacement(parent, free_items)
-    return first_fit_descending(parent, free_items)
+    child = first_fit_descending(parent, free_items)
+    if _parent.calculate_fitness() > child.calculate_fitness():
+        return _parent
+    else:
+        return child
 
 def mutation_parallel(data: Chromosome):
     _mutation = bool(np.random.rand(1) <= Population._mutation_probability)
@@ -315,9 +320,9 @@ if __name__ == '__main__':
                        'generations_number': 500, 'stop_criterion_depth': 50}
     generate_config['offspring_number'] = int(generate_config['population_size'] / 2)
     generate_config['chromosomes_replace'] = int(generate_config['population_size'] / 2)
-    path = 'data/binpack_test.txt'
+    # path = 'data/binpack_test.txt'
     # path = 'data/binpack1.txt'
-    # path = 'data/binpack2.txt'
+    path = 'data/binpack2.txt'
     # path = 'data/binpack4.txt'
     test_sets = load_data(path)
     for _set in test_sets:

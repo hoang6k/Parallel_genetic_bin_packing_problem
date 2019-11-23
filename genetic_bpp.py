@@ -156,6 +156,7 @@ class Population:
         return first_child, second_child
 
     def mutation(self, parent: Chromosome):
+        _parent = copy.deepcopy(parent)
         while True:
             bins_mutation_indexes = np.random.randint(len(parent._bins), size=self._mutation_size)
             if len(set(bins_mutation_indexes)) == self._mutation_size:
@@ -165,7 +166,11 @@ class Population:
         free_bins = [parent._bins.pop(idx) for idx in bins_mutation_indexes]
         free_items = [item for _bin in free_bins for item in _bin._items]
         # parent, free_items = self.replacement(parent, free_items)
-        return self.first_fit_descending(parent, free_items)
+        child = self.first_fit_descending(parent, free_items)
+        if _parent.calculate_fitness() > child.calculate_fitness():
+            return _parent
+        else:
+            return child
 
     def generate_next(self):
         print('\nIteration {}'.format(len(self._generations_fitness)))
